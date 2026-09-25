@@ -55,15 +55,11 @@ let
       ''makeWrapper ${babashka}/bin/bb "$out/bin/${bin}" --add-flags "${jar}"''
     else
       ''makeWrapper ${jdk}/bin/java "$out/bin/${bin}" --add-flags "-jar ${jar}"'';
-in
-pkgs.runCommand "${name}-uberjar"
+  drv = pkgs.runCommand "${name}-uberjar"
   {
     nativeBuildInputs = [ pkgs.makeWrapper ];
     meta.mainProgram = bin;
-    passthru = {
-      deps = depsDrv;
-      jar = "${placeholder "out"}/share/${name}/${name}.jar";
-    };
+    passthru.deps = depsDrv;
   }
   ''
     export HOME="$TMPDIR/home"
@@ -74,4 +70,15 @@ pkgs.runCommand "${name}-uberjar"
     ${launch} \
       ${pkgs.lib.optionalString (runtimeInputs != [ ]) "--prefix PATH : ${pkgs.lib.makeBinPath runtimeInputs}"} \
       ${pkgs.lib.escapeShellArgs wrapperArgs}
-  ''
+  '';
+in
+# `jar` is the built jar's real store path, taken from the final package, so a
+# consuming derivation that interpolates it depends on this one and finds the
+# file. (`placeholder "out"` would resolve to the consumer's own $out.)
+drv.overrideAttrs (
+  finalAttrs: previousAttrs: {
+    passthru = (previousAttrs.passthru or { }) // {
+      jar = "${finalAttrs.finalPackage}/share/${name}/${name}.jar";
+    };
+  }
+)

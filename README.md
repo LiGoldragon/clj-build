@@ -19,6 +19,8 @@ clj-build.lib.${system}.fetchCljDeps pkgs { edn, hash, aliases ? [ ], name ? "cl
 - `mkCljCli` wraps sources and jars as a command; `mkCljUberjar` builds one
   jar (a `bb uberjar`, or an AOT JVM jar with a generated launcher).
   Both accept `runtimeInputs` and raw `wrapperArgs` (e.g. `--set` for a pod).
+  An uberjar's `passthru.jar` is the jar's real store path; another
+  derivation that interpolates it depends on the uberjar and finds the file.
 - `mkCljChecks` runs the named `clojure.test` namespaces with the `aliases`
   classpath; it fails on any failure or error, and when no test ran.
 
