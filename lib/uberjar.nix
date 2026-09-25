@@ -44,8 +44,12 @@ let
         (cd staging
           for j in $(echo "$jars" | tr ':' ' '); do ${jdk}/bin/jar xf "$j"; done
           rm -f META-INF/MANIFEST.MF META-INF/*.SF META-INF/*.RSA META-INF/*.DSA)
-        ${builtins.concatStringsSep "\n" (map (p: "cp -r ${src}/${p}/. staging/") paths)}
-        cp -r classes/. staging/
+        # staging/ is a build-time directory: every copy into it is made
+        # writable, since store sources and extracted jars arrive read-only.
+        chmod -R u+w staging
+        ${builtins.concatStringsSep "\n" (map (p: "cp -r --no-preserve=mode ${src}/${p}/. staging/") paths)}
+        chmod -R u+w staging
+        cp -r --no-preserve=mode classes/. staging/
         chmod -R u+w staging
         ${jdk}/bin/jar --create --file "${jar}" --main-class clj_build.launcher \
           --date 1980-01-01T00:00:02Z -C staging .
