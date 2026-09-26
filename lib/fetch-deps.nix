@@ -2,6 +2,13 @@
 # derivation and keeps only the jars on the resolved classpaths, laid out
 # as a Maven repository. Maven jars are byte-stable, so the hash is too.
 #
+# The output must not depend on the Clojure CLI that resolves it. The CLI's
+# built-in root deps.edn adds org.clojure/clojure at the CLI's own version
+# when the project does not name one, so two nixpkgs revisions (CLI
+# 1.12.5.1664 and 1.12.6.1673) resolved different jars for the same deps.edn.
+# A user deps.edn, merged after the root and before the project, fixes that
+# default at `clojureVersion`; a project that names its own Clojure still wins.
+#
 # Output:
 #   repository/<group>/<artifact>/<version>/<jar>
 #   classpath           base classpath, one repository-relative jar per line
@@ -12,6 +19,7 @@ pkgs:
   hash,
   aliases ? [ ],
   name ? "clj-deps",
+  clojureVersion ? "1.12.6",
 }:
 let
   aliasFlag = if aliases == [ ] then "" else "-A:" + builtins.concatStringsSep ":" aliases;
@@ -28,6 +36,9 @@ pkgs.stdenvNoCC.mkDerivation {
     runHook preBuild
     export HOME="$TMPDIR/home" CLJ_CONFIG="$TMPDIR/clj-config" GITLIBS="$TMPDIR/gitlibs"
     mkdir -p "$HOME" "$CLJ_CONFIG" project
+    cat > "$CLJ_CONFIG/deps.edn" <<'EDN'
+    {:deps {org.clojure/clojure {:mvn/version "${clojureVersion}"}}}
+    EDN
     m2="$TMPDIR/m2"
     cp ${edn} project/deps.edn
     cd project
